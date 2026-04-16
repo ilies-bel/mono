@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v0.3.0)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  build:
+    name: build (${{ matrix.asset }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: bun-linux-x64
+            asset: mono-linux-x64
+          - target: bun-linux-x64-baseline
+            asset: mono-linux-x64-baseline
+          - target: bun-linux-arm64
+            asset: mono-linux-arm64
+          - target: bun-darwin-x64
+            asset: mono-darwin-x64
+            sign: true
+          - target: bun-darwin-x64-baseline
+            asset: mono-darwin-x64-baseline
+            sign: true
+          - target: bun-darwin-arm64
+            asset: mono-darwin-arm64
+            sign: true
+          - target: bun-windows-x64
+            asset: mono-windows-x64.exe
+          - target: bun-windows-x64-baseline
+            asset: mono-windows-x64-baseline.exe
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install ldid (macOS targets only)
+        if: matrix.sign
+        run: sudo apt-get update && sudo apt-get install -y ldid
+
+      - name: Cross-compile ${{ matrix.target }}
+        run: |
+          mkdir -p dist
+          bun build src/index.ts \
+            --compile \
+            --minify \
+            --target=${{ matrix.target }} \
+            --outfile dist/${{ matrix.asset }}
+
+      - name: Ad-hoc sign macOS binary
+        if: matrix.sign
+        run: ldid -S dist/${{ matrix.asset }}
+
+      - name: Compute SHA-256 checksum
+        working-directory: dist
+        run: sha256sum ${{ matrix.asset }} > ${{ matrix.asset }}.sha256
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: |
+            dist/${{ matrix.asset }}
+            dist/${{ matrix.asset }}.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Aggregate checksums
+        working-directory: artifacts
+        run: |
+          cat *.sha256 | sort > SHA256SUMS
+          rm -f *.sha256
+
+      - name: Stage install script alongside assets
+        run: cp install.sh artifacts/install.sh
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TAG }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/mono-*
+            artifacts/SHA256SUMS
+            artifacts/install.sh

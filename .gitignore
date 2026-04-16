@@ -3,3 +3,17 @@
 .dolt/
 *.db
 .beads-credential-key
+
+# Local-only beads task tracking (contains credential key + dolt server runtime)
+.beads/
+
+# Dependencies and build output (rebuilt by CI / install.sh downloads from releases)
+node_modules/
+dist/
+
+# bun --compile scratch caches
+*.bun-build
+.*.bun-build
+
+# macOS
+.DS_Store
