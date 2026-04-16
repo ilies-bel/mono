@@ -17,6 +17,14 @@ bun run typecheck        # tsc --noEmit
 
 ## Install
 
+Homebrew (macOS / Linux):
+
+```bash
+brew install ilies-bel/mono/mono
+# (the fully-qualified name is required because homebrew-core's `mono`
+# is the .NET runtime — `brew install mono` would install that instead.)
+```
+
 One-liner (downloads the right prebuilt binary for your OS/arch from the latest GitHub release, verifies SHA-256, installs to `~/.local/bin`):
 
 ```bash
@@ -33,6 +41,20 @@ From a clone:
 
 ```bash
 bash bootstrap.sh --build   # one-time build + symlink into $PATH
+```
+
+### Homebrew tap setup (one-time, repo owner only)
+
+The tap is auto-bumped by the release workflow when both of these are configured on `ilies-bel/mono`:
+
+1. Create the tap repo: `ilies-bel/homebrew-mono` (empty is fine).
+2. Add an Actions **variable** `HOMEBREW_TAP_REPO` = `ilies-bel/homebrew-mono`.
+3. Add an Actions **secret** `HOMEBREW_TAP_TOKEN` = a fine-grained PAT with `contents: read & write` on `ilies-bel/homebrew-mono`.
+
+After that, every `v*` tag triggers a commit to the tap with the new version and SHAs. To render the formula manually:
+
+```bash
+bash scripts/render-formula.sh v0.3.0 > /tmp/mono.rb
 ```
 
 ## Layout

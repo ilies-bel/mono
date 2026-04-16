@@ -117,3 +117,43 @@ jobs:
             artifacts/mono-*
             artifacts/SHA256SUMS
             artifacts/install.sh
+
+  homebrew-tap:
+    name: bump homebrew tap
+    needs: release
+    runs-on: ubuntu-latest
+    # Skip silently if HOMEBREW_TAP_TOKEN secret isn't configured. Lets the
+    # release workflow stay green for users who haven't created a tap yet.
+    if: ${{ vars.HOMEBREW_TAP_REPO != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Render Formula/mono.rb for ${{ env.TAG }}
+        run: |
+          mkdir -p out
+          bash scripts/render-formula.sh "${TAG}" > out/mono.rb
+          cat out/mono.rb
+
+      - name: Push formula to ${{ vars.HOMEBREW_TAP_REPO }}
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAP: ${{ vars.HOMEBREW_TAP_REPO }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "x HOMEBREW_TAP_TOKEN secret missing — set a PAT with contents:write on ${TAP}" >&2
+            exit 1
+          fi
+          git clone --depth=1 "https://x-access-token:${GH_TOKEN}@github.com/${TAP}.git" tap
+          mkdir -p tap/Formula
+          cp out/mono.rb tap/Formula/mono.rb
+          cd tap
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "✓ formula already up to date"
+            exit 0
+          fi
+          git add Formula/mono.rb
+          git commit -m "mono ${TAG}"
+          git push origin HEAD
