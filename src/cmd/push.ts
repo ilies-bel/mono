@@ -26,6 +26,7 @@
 
 import { Command } from "commander";
 import { promises as fs } from "node:fs";
+import * as path from "node:path";
 
 import { skin } from "../skin/index.ts";
 import {
@@ -54,6 +55,29 @@ async function dirExists(p: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Find the registered worktree whose path contains `cwd`. Returns the deepest
+ * match so nested worktrees resolve to the inner one. Used when `mono push`
+ * is invoked without a worktree name — the user's current directory selects
+ * the target.
+ */
+export function findWorktreeForCwd(
+  reg: Registry,
+  cwd: string,
+): Worktree | undefined {
+  const resolvedCwd = path.resolve(cwd);
+  const matches: Worktree[] = [];
+  for (const wt of reg.worktrees) {
+    const wtPath = path.resolve(wt.path);
+    const rel = path.relative(wtPath, resolvedCwd);
+    if (rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel))) {
+      matches.push(wt);
+    }
+  }
+  matches.sort((a, b) => b.path.length - a.path.length);
+  return matches[0] ? { ...matches[0] } : undefined;
 }
 
 /**
@@ -259,10 +283,13 @@ async function pushWorktree(
 export function pushCommand(): Command {
   return new Command("push")
     .description(
-      "push parent + submodules to origin; failures are queued for retry. Use 'all' to push every registered worktree.",
+      "push parent + submodules to origin; failures are queued for retry. Omit <name> to push the worktree containing the current directory. Use 'all' to push every registered worktree.",
     )
-    .argument("<name>", "worktree name, or 'all' to push every registered worktree")
-    .action(async (name: string) => {
+    .argument(
+      "[name]",
+      "worktree name, or 'all' to push every registered worktree (defaults to the worktree containing the current directory)",
+    )
+    .action(async (name: string | undefined) => {
       skin.setCommand("push");
 
       const beadId = process.env.BEAD_ID ?? null;
@@ -277,6 +304,19 @@ export function pushCommand(): Command {
       }
 
       const reg = await loadRegistry(root);
+
+      // ─── no argument → infer worktree from cwd ──────────────────────────
+      if (name === undefined) {
+        const inferred = findWorktreeForCwd(reg, process.cwd());
+        if (!inferred) {
+          skin.fail(
+            "INVALID_ARGS",
+            "no worktree name given and current directory is not inside a registered worktree",
+          );
+          return;
+        }
+        name = inferred.name;
+      }
 
       // ─── `mono push all` ────────────────────────────────────────────────
       // A literal "all" iterates every registered worktree sequentially.

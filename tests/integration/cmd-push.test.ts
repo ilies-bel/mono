@@ -310,6 +310,35 @@ describe("cmd/push (integration)", () => {
     expect(env.error?.code).toBe("NOT_FOUND");
   });
 
+  test("no name + cwd inside worktree → pushes inferred worktree", async () => {
+    const wtReal = await realpath(wtPath);
+    process.chdir(wtReal);
+    try {
+      await buildProgram().parseAsync(["node", "mono", "push"]);
+      skin.flush();
+    } finally {
+      process.chdir(checkoutReal);
+    }
+
+    const env = parseLastEnvelope(cap.captured.stdout);
+    expect(env.error).toBeNull();
+    expect(env.ok).toBe(true);
+
+    const data = env.data as PushDataShape;
+    expect(data.name).toBe("foo");
+    expect(data.results).toHaveLength(3);
+    for (const r of data.results) expect(r.pushed).toBe(true);
+  });
+
+  test("no name + cwd outside any worktree → INVALID_ARGS", async () => {
+    await buildProgram().parseAsync(["node", "mono", "push"]);
+    skin.flush();
+
+    const env = parseLastEnvelope(cap.captured.stdout);
+    expect(env.ok).toBe(false);
+    expect(env.error?.code).toBe("INVALID_ARGS");
+  });
+
   test("push all: pushes every registered worktree and aggregates results", async () => {
     // Create a second worktree `bar` with commits on each repo.
     await buildProgram().parseAsync(["node", "mono", "new", "bar"]);
