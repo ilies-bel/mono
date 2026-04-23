@@ -216,6 +216,33 @@ export const PushAllDataSchema = z.object({
 });
 export type PushAllData = z.infer<typeof PushAllDataSchema>;
 
+// ─── pull ───────────────────────────────────────────────────────────────────
+// A pull attempt per repo resolves to one of:
+//   pulled  — fast-forward landed (even if already up-to-date)
+//   skipped — remote branch absent; nothing to pull
+//   failed  — ff-only refused (diverged / dirty tree) or repo missing
+export const PullStatusSchema = z.enum(["pulled", "skipped", "failed"]);
+export type PullStatus = z.infer<typeof PullStatusSchema>;
+
+export const PullResultSchema = z.object({
+  repo: RepoLabelSchema,
+  branch: z.string(),
+  status: PullStatusSchema,
+  error: z.string().nullable(),
+});
+export type PullResult = z.infer<typeof PullResultSchema>;
+
+export const PullDataSchema = z.object({
+  name: z.string(),
+  results: z.array(PullResultSchema),
+});
+export type PullData = z.infer<typeof PullDataSchema>;
+
+export const PullAllDataSchema = z.object({
+  worktrees: z.array(PullDataSchema),
+});
+export type PullAllData = z.infer<typeof PullAllDataSchema>;
+
 // ─── placeholders (tightened by sibling beads) ──────────────────────────────
 export const SchemaDataSchema = z.unknown().optional();
 

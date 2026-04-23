@@ -86,6 +86,7 @@ describe("cmd/schema", () => {
         "rm",
         "rebase",
         "push",
+        "pull",
       ].sort(),
     );
     for (const name of SCHEMA_NAMES) {

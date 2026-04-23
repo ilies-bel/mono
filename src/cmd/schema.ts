@@ -25,6 +25,7 @@ import {
   RmDataSchema,
   RebaseDataSchema,
   PushDataSchema,
+  PullDataSchema,
   envelope,
 } from "../core/schemas.ts";
 
@@ -40,6 +41,7 @@ export const SCHEMAS: Record<string, z.ZodTypeAny> = {
   rm: RmDataSchema,
   rebase: RebaseDataSchema,
   push: PushDataSchema,
+  pull: PullDataSchema,
 };
 
 export const SCHEMA_NAMES: readonly string[] = Object.keys(SCHEMAS).sort();

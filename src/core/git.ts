@@ -98,6 +98,18 @@ export async function push(
   return git(cwd, args);
 }
 
+// `git pull --ff-only origin <branch>` — safe default. Refuses to run if the
+// local branch has diverged, so pulls never silently merge or rewrite history.
+// Callers inspect `ok`: failure means either the remote branch is missing,
+// the working tree is dirty, or local has commits the remote doesn't.
+export async function pull(
+  cwd: string,
+  remote: string,
+  branch: string,
+): Promise<GitResult> {
+  return git(cwd, ["pull", "--ff-only", remote, branch]);
+}
+
 export async function add(cwd: string, paths: string[]): Promise<GitResult> {
   return git(cwd, ["add", ...paths]);
 }

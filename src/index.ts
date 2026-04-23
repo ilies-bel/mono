@@ -8,6 +8,7 @@ import { statusCommand } from "./cmd/status.ts";
 import { newCommand } from "./cmd/new.ts";
 import { commitCommand } from "./cmd/commit.ts";
 import { pushCommand } from "./cmd/push.ts";
+import { pullCommand } from "./cmd/pull.ts";
 import { rebaseCommand } from "./cmd/rebase.ts";
 import { rmCommand } from "./cmd/rm.ts";
 import { schemaCommand } from "./cmd/schema.ts";
@@ -55,6 +56,7 @@ program.addCommand(newCommand());
 program.addCommand(commitCommand());
 program.addCommand(rebaseCommand());
 program.addCommand(pushCommand());
+program.addCommand(pullCommand());
 program.addCommand(rmCommand());
 program.addCommand(schemaCommand());
 
